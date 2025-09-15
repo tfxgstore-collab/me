@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>TFXG Store — Robots</title>
+  <style>
+    /* ========== World-class inbuilt CSS (self-contained) ========== */
+    :root{
+      --bg:#07060a; --card:#0f0f14; --accent:#6ee7b7; --muted:#9aa3b2;
+      --glass: rgba(255,255,255,0.03);
+      --max-width:1200px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:Inter,Segoe UI,system-ui,Arial; background:linear-gradient(180deg,#030313,#0d1020 60%); color:#e6eef6;
+      -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+    }
+    header{padding:28px 20px; text-align:center}
+    header h1{margin:0;font-size:28px;color:var(--accent);letter-spacing:0.6px}
+    .container{max-width:var(--max-width);margin:18px auto;padding:0 18px}
+    .grid{display:grid;gap:18px;grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent); border-radius:12px;padding:14px;box-shadow:0 8px 24px rgba(2,6,23,0.6);display:flex;flex-direction:column;align-items:center;transition:transform .18s}
+    .card:hover{transform:translateY(-6px)}
+    .card img{width:100%;height:140px;object-fit:cover;border-radius:8px;margin-bottom:10px}
+    .card h3{font-size:16px;margin:6px 0 4px;color:#fff}
+    .price{font-weight:700;color:#cfeff2;margin-bottom:10px}
+    .buy{padding:10px 14px;border-radius:10px;border:0;background:var(--accent);color:#071019;font-weight:700;cursor:pointer}
+    .buy.small{padding:8px 10px}
+    /* Modal */
+    .modal{position:fixed;inset:0;background:rgba(2,6,23,0.7);display:none;align-items:center;justify-content:center;z-index:9999;padding:20px}
+    .modal .panel{width:100%;max-width:460px;background:linear-gradient(180deg,#0b0f17,#06101b);border-radius:12px;padding:18px;box-shadow:0 16px 40px rgba(2,6,23,0.7);position:relative}
+    .closebtn{position:absolute;right:12px;top:10px;color:#cbd5e1;background:transparent;border:0;font-size:20px;cursor:pointer}
+    label{display:block;font-size:13px;margin-top:10px;color:var(--muted)}
+    input[type="text"], input[type="tel"]{width:100%;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#e6eef6;margin-top:6px}
+    .methods{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    .methodbtn{flex:1;padding:10px;border-radius:8px;border:0;background:linear-gradient(90deg,#10202c,#0b1720);color:#bfeee0;cursor:pointer}
+    .methodbtn.active{outline:2px solid rgba(110,231,183,0.18);box-shadow:0 6px 18px rgba(15,183,136,0.06)}
+    .meta{font-size:14px;color:var(--muted);margin-top:6px}
+    .center{display:flex;gap:8px;justify-content:center;align-items:center}
+    /* loader & success */
+    .spinner{width:48px;height:48px;border-radius:50%;border:5px solid rgba(255,255,255,0.06);border-top-color:var(--accent);animation:spin 1s linear infinite;margin:12px auto}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .success-check{font-size:48px;color:#50e3a4;text-align:center;margin:12px 0}
+    footer{padding:20px;text-align:center;color:var(--muted);font-size:13px}
+    /* responsive */
+    @media(min-width:900px){ header h1{font-size:34px} }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>TFXG Robots Store — Buy Automated Trading Bots</h1>
+  </header>
+
+  <main class="container">
+    <section>
+      <div id="products" class="grid"></div>
+    </section>
+  </main>
+
+  <!-- Purchase modal -->
+  <div class="modal" id="purchaseModal" role="dialog" aria-hidden="true">
+    <div class="panel" id="modalPanel">
+      <button class="closebtn" onclick="closeModal()">✕</button>
+      <h2 id="modalTitle">Product</h2>
+      <p id="modalPrice" class="meta"></p>
+
+      <div style="margin-top:14px">
+        <div class="methods" id="payMethods">
+          <button class="methodbtn" data-method="mpesa" onclick="selectMethod(this)">M-Pesa</button>
+          <button class="methodbtn" data-method="card" onclick="selectMethod(this)">Visa / Mastercard (Payhip)</button>
+          <button class="methodbtn" data-method="paypal" onclick="selectMethod(this)">PayPal</button>
+          <button class="methodbtn" data-method="crypto" onclick="selectMethod(this)">Crypto</button>
+        </div>
+      </div>
+
+      <!-- MPESA section -->
+      <div id="mpesaArea" style="display:none;margin-top:12px">
+        <label for="phoneInput">Phone number (format 2547XXXXXXXX)</label>
+        <input id="phoneInput" type="tel" placeholder="2547XXXXXXXX" />
+        <p class="meta" id="convertedAmount"></p>
+        <div style="margin-top:12px" class="center">
+          <button class="buy" id="confirmMpesaBtn" onclick="startMpesa()" >Confirm & Pay</button>
+        </div>
+      </div>
+
+      <!-- Loader -->
+      <div id="loader" style="display:none;margin-top:14px">
+        <div class="spinner"></div>
+        <p style="text-align:center;color:var(--muted)">Kindly enter your M-PESA PIN on your phone to complete the payment...</p>
+      </div>
+
+      <!-- Success -->
+      <div id="successBox" style="display:none;margin-top:14px">
+        <div class="success-check">✔</div>
+        <p style="text-align:center;font-weight:700">Payment successful</p>
+        <p style="text-align:center;color:var(--muted)">Redirecting to the download page...</p>
+      </div>
+    </div>
+  </div>
+
+  <footer>© TFXG Store</footer>
+
+  <script>
+  // ===========================
+  // Products (with cheap test bots)
+  // ===========================
+  const robotNames = [
+    { name: "NeuroTrade 2025", price: 0.025, payhip: "https://payhip.com/b/ngxSk", crypto: "https://commerce.coinbase.com/checkout/YYY01" }, // ~KES 2
+    { name: "QuantumBot X", price: 5, payhip: "https://payhip.com/b/0IR4H", crypto: "https://commerce.coinbase.com/checkout/YYY02" },
+    { name: "AlphaPulse EA", price: 5, payhip: "https://payhip.com/b/L1eIq", crypto: "https://commerce.coinbase.com/checkout/YYY03" },
+    { name: "VortexTrader", price: 6, payhip: "https://payhip.com/b/Mwmlk", crypto: "https://commerce.coinbase.com/checkout/YYY04" },
+    { name: "Zenith AI Trader", price: 6, payhip: "https://payhip.com/b/qhZeI", crypto: "https://commerce.coinbase.com/checkout/YYY05" },
+    { name: "Synapse FX", price: 7, payhip: "https://payhip.com/b/g6VFp", crypto: "https://commerce.coinbase.com/checkout/YYY06" },
+    { name: "AetherBot Pro", price: 7, payhip: "https://payhip.com/b/PeiQF", crypto: "https://commerce.coinbase.com/checkout/YYY07" },
+    { name: "NanoEdge EA", price: 8, payhip: "https://payhip.com/b/C0wEa", crypto: "https://commerce.coinbase.com/checkout/YYY08" },
+    { name: "Sentient Trader", price: 9, payhip: "https://payhip.com/b/in92S", crypto: "https://commerce.coinbase.com/checkout/YYY09" },
+    { name: "AutoPilot Prime", price: 9, payhip: "https://payhip.com/b/zZFfH", crypto: "https://commerce.coinbase.com/checkout/YYY10" },
+    { name: "LogicCore EA", price: 12, payhip: "https://payhip.com/b/eMSUc", crypto: "https://commerce.coinbase.com/checkout/YYY11" },
+    { name: "TradeSavant", price: 15, payhip: "https://payhip.com/b/eiOG5", crypto: "https://commerce.coinbase.com/checkout/YYY12" },
+    { name: "TitanEdge", price: 17, payhip: "https://payhip.com/b/HmFYT", crypto: "https://commerce.coinbase.com/checkout/YYY13" },
+    { name: "SmartGridX", price: 19, payhip: "https://payhip.com/b/Sug6m", crypto: "https://commerce.coinbase.com/checkout/YYY14" },
+    { name: "CoreScalp", price: 22, payhip: "https://payhip.com/b/6xXPp", crypto: "https://commerce.coinbase.com/checkout/YYY15" },
+    { name: "AI Phantom", price: 0.025, payhip: "https://payhip.com/b/2D3lA", crypto: "https://commerce.coinbase.com/checkout/YYY16" }, // ~KES 2
+    { name: "ThunderTrade", price: 27, payhip: "https://payhip.com/b/1Q32u", crypto: "https://commerce.coinbase.com/checkout/YYY17" },
+    { name: "PulseWave EA", price: 29, payhip: "https://payhip.com/b/rgKjY", crypto: "https://commerce.coinbase.com/checkout/YYY18" },
+    { name: "StealthGrid", price: 33, payhip: "https://payhip.com/b/ALx37", crypto: "https://commerce.coinbase.com/checkout/YYY19" },
+    { name: "NovaScalp", price: 37, payhip: "https://payhip.com/b/HM2Ig", crypto: "https://commerce.coinbase.com/checkout/YYY20" }
+  ];
+
+  // ================
+  // App state
+  // ================
+  let selectedIndex = null;
+  const USD_TO_KES = 130; // conversion
+
+  // Render products
+  function render() {
+    const wrap = document.getElementById('products');
+    wrap.innerHTML = robotNames.map((r, i) => `
+      <div class="card">
+        <img src="https://tfxg.store/images/${(i%20)+1}.jpg" alt="${r.name}" onerror="this.style.display='none'"/>
+        <h3>${r.name}</h3>
+        <div class="price">$${r.price} USD</div>
+        <button class="buy" onclick="openBuy(${i})">Buy Now</button>
+      </div>
+    `).join('');
+  }
+
+  function openBuy(i){
+    selectedIndex = i;
+    const p = robotNames[i];
+    document.getElementById('modalTitle').innerText = p.name;
+    document.getElementById('modalPrice').innerText = `$${p.price} USD`;
+    // reset UI
+    document.querySelectorAll('.methodbtn').forEach(b=>b.classList.remove('active'));
+    document.getElementById('mpesaArea').style.display='none';
+    document.getElementById('loader').style.display='none';
+    document.getElementById('successBox').style.display='none';
+    document.getElementById('purchaseModal').style.display='flex';
+  }
+
+  function closeModal(){ document.getElementById('purchaseModal').style.display='none' }
+
+  function selectMethod(btn){
+    document.querySelectorAll('.methodbtn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const method = btn.dataset.method;
+    if(method === 'mpesa'){
+      const p = robotNames[selectedIndex];
+      const kes = p.price * USD_TO_KES;
+      document.getElementById('convertedAmount').innerText = `You will pay KES ${kes}`;
+      document.getElementById('mpesaArea').style.display = 'block';
+    } else {
+      document.getElementById('mpesaArea').style.display = 'none';
+    }
+  }
+
+  // ===============================
+  // STK push flow
+  // ===============================
+  async function startMpesa(){
+    const phone = document.getElementById('phoneInput').value.trim();
+    if(!/^(2547\d{8})$/.test(phone)){
+      alert('Enter phone in format 2547XXXXXXXX');
+      return;
+    }
+    const p = robotNames[selectedIndex];
+    const amountKES = Math.round(p.price * USD_TO_KES);
+
+    document.getElementById('mpesaArea').style.display='none';
+    document.getElementById('loader').style.display='block';
+
+    try {
+      const res = await fetch('/.netlify/functions/stkpush', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          phone: phone,
+          amount: amountKES,
+          accountReference: p.name
+        })
+      });
+      const json = await res.json();
+      if(json.ResponseCode === "0" || json.ResponseCode === 0){
+        const checkoutId = json.CheckoutRequestID || json.checkoutRequestID || json.CheckoutRequestId;
+        pollStkStatus(checkoutId, 0);
+      } else {
+        document.getElementById('loader').style.display='none';
+        alert('Failed to initiate STK push: ' + (json.error ? JSON.stringify(json.error) : JSON.stringify(json)));
+      }
+    } catch (err){
+      console.error(err);
+      document.getElementById('loader').style.display='none';
+      alert('Error initiating payment. Check console.');
+    }
+  }
+
+  async function pollStkStatus(checkoutId, attempt){
+    if(attempt > 40){
+      document.getElementById('loader').style.display='none';
+      alert('Payment not confirmed within time. Please check your Mpesa or try again.');
+      return;
+    }
+    try {
+      const res = await fetch('/.netlify/functions/stkquery', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ checkoutId })
+      });
+      const json = await res.json();
+      const resultCode = json.ResultCode ?? (json.Body && json.Body.stkCallback && json.Body.stkCallback.ResultCode);
+      const resultDesc = json.ResultDesc ?? (json.Body && json.Body.stkCallback && json.Body.stkCallback.ResultDesc);
+
+      if(resultCode === 0 || resultCode === "0"){
+        document.getElementById('loader').style.display='none';
+        document.getElementById('successBox').style.display='block';
+        setTimeout(()=>{ window.location.href = 'https://tfxg.store/thankyou?product=' + encodeURIComponent(robotNames[selectedIndex].name) }, 1800);
+        return;
+      } else if(resultCode && resultCode !== 0){
+        document.getElementById('loader').style.display='none';
+        alert('Payment failed or cancelled: ' + (resultDesc || JSON.stringify(json)));
+        return;
+      } else {
+        setTimeout(()=> pollStkStatus(checkoutId, attempt+1), 3000);
+      }
+    } catch(err){
+      console.error('poll error', err);
+      setTimeout(()=> pollStkStatus(checkoutId, attempt+1), 3000);
+    }
+  }
+
+  render();
+  </script>
+</body>
+</html>
