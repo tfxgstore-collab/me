@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -103,10 +104,10 @@
 
   <script>
   // ===========================
-  // Products (with cheap test bots)
+  // Products (you provided these)
   // ===========================
   const robotNames = [
-    { name: "NeuroTrade 2025", price: 0.025, payhip: "https://payhip.com/b/ngxSk", crypto: "https://commerce.coinbase.com/checkout/YYY01" }, // ~KES 2
+    { name: "NeuroTrade 2025", price: 0.02, payhip: "https://payhip.com/b/ngxSk", crypto: "https://commerce.coinbase.com/checkout/YYY01" },
     { name: "QuantumBot X", price: 5, payhip: "https://payhip.com/b/0IR4H", crypto: "https://commerce.coinbase.com/checkout/YYY02" },
     { name: "AlphaPulse EA", price: 5, payhip: "https://payhip.com/b/L1eIq", crypto: "https://commerce.coinbase.com/checkout/YYY03" },
     { name: "VortexTrader", price: 6, payhip: "https://payhip.com/b/Mwmlk", crypto: "https://commerce.coinbase.com/checkout/YYY04" },
@@ -121,7 +122,7 @@
     { name: "TitanEdge", price: 17, payhip: "https://payhip.com/b/HmFYT", crypto: "https://commerce.coinbase.com/checkout/YYY13" },
     { name: "SmartGridX", price: 19, payhip: "https://payhip.com/b/Sug6m", crypto: "https://commerce.coinbase.com/checkout/YYY14" },
     { name: "CoreScalp", price: 22, payhip: "https://payhip.com/b/6xXPp", crypto: "https://commerce.coinbase.com/checkout/YYY15" },
-    { name: "AI Phantom", price: 0.025, payhip: "https://payhip.com/b/2D3lA", crypto: "https://commerce.coinbase.com/checkout/YYY16" }, // ~KES 2
+    { name: "AI Phantom", price: 0.025, payhip: "https://payhip.com/b/2D3lA", crypto: "https://commerce.coinbase.com/checkout/YYY16" },
     { name: "ThunderTrade", price: 27, payhip: "https://payhip.com/b/1Q32u", crypto: "https://commerce.coinbase.com/checkout/YYY17" },
     { name: "PulseWave EA", price: 29, payhip: "https://payhip.com/b/rgKjY", crypto: "https://commerce.coinbase.com/checkout/YYY18" },
     { name: "StealthGrid", price: 33, payhip: "https://payhip.com/b/ALx37", crypto: "https://commerce.coinbase.com/checkout/YYY19" },
@@ -173,6 +174,7 @@
       document.getElementById('mpesaArea').style.display = 'block';
     } else {
       document.getElementById('mpesaArea').style.display = 'none';
+      // direct redirects happen on payOther()
     }
   }
 
@@ -188,10 +190,12 @@
     const p = robotNames[selectedIndex];
     const amountKES = Math.round(p.price * USD_TO_KES);
 
+    // show loader
     document.getElementById('mpesaArea').style.display='none';
     document.getElementById('loader').style.display='block';
 
     try {
+      // call Netlify function to start STK push
       const res = await fetch('/.netlify/functions/stkpush', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
@@ -202,10 +206,13 @@
         })
       });
       const json = await res.json();
+      // If daraja accepted submission, we get ResponseCode 0 and CheckoutRequestID
       if(json.ResponseCode === "0" || json.ResponseCode === 0){
         const checkoutId = json.CheckoutRequestID || json.checkoutRequestID || json.CheckoutRequestId;
+        // Poll stkquery every 3 seconds until success or failure
         pollStkStatus(checkoutId, 0);
       } else {
+        // show user error
         document.getElementById('loader').style.display='none';
         alert('Failed to initiate STK push: ' + (json.error ? JSON.stringify(json.error) : JSON.stringify(json)));
       }
@@ -216,8 +223,9 @@
     }
   }
 
+  // Poll function: calls stkquery lambda to ask Daraja for final status
   async function pollStkStatus(checkoutId, attempt){
-    if(attempt > 40){
+    if(attempt > 40){ // ~2 minutes timeout
       document.getElementById('loader').style.display='none';
       alert('Payment not confirmed within time. Please check your Mpesa or try again.');
       return;
@@ -229,19 +237,26 @@
         body: JSON.stringify({ checkoutId })
       });
       const json = await res.json();
+      // Daraja STK Query returns ResultCode inside Body.stkCallback if processed
+      // json could include ResultCode directly depending on our function
+      // Normalize:
       const resultCode = json.ResultCode ?? (json.Body && json.Body.stkCallback && json.Body.stkCallback.ResultCode);
       const resultDesc = json.ResultDesc ?? (json.Body && json.Body.stkCallback && json.Body.stkCallback.ResultDesc);
 
       if(resultCode === 0 || resultCode === "0"){
+        // Success: show success popup and redirect to thankyou
         document.getElementById('loader').style.display='none';
         document.getElementById('successBox').style.display='block';
+        // optionally you can pass product query param
         setTimeout(()=>{ window.location.href = 'https://tfxg.store/thankyou?product=' + encodeURIComponent(robotNames[selectedIndex].name) }, 1800);
         return;
       } else if(resultCode && resultCode !== 0){
+        // Failure/cancelled
         document.getElementById('loader').style.display='none';
         alert('Payment failed or cancelled: ' + (resultDesc || JSON.stringify(json)));
         return;
       } else {
+        // Still pending: wait and poll again
         setTimeout(()=> pollStkStatus(checkoutId, attempt+1), 3000);
       }
     } catch(err){
@@ -249,6 +264,28 @@
       setTimeout(()=> pollStkStatus(checkoutId, attempt+1), 3000);
     }
   }
+
+  // other payment methods
+  function payOther(method){
+    const p = robotNames[selectedIndex];
+    if(method === 'crypto'){
+      window.location.href = p.crypto;
+    } else if(method === 'paypal'){
+      // replace with your PayPal link if you have one, else go to payhip fallback
+      window.location.href = p.payhip;
+    } else {
+      // card via Payhip
+      window.location.href = p.payhip;
+    }
+  }
+
+  // Helper wiring for the simple method buttons
+  document.addEventListener('click', e=>{
+    if(e.target && e.target.matches('.methodbtn[data-method]')){
+      const m = e.target.dataset.method;
+      if(m === 'mpesa') selectMethod(e.target);
+    }
+  });
 
   render();
   </script>
